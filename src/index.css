@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+/* SF Pro — resolved from the Figma file-scoped catalog (stable CDN payloads). */
+@font-face {
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro_1') format('truetype');
+}
+
+@font-face {
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 510 600;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro_1') format('truetype');
+}
+
+@font-face {
+  font-family: 'SF Pro';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro-Italic_1') format('truetype');
+}
+
+/* Colon-named aliases used verbatim by the imported Figma components. */
+@font-face {
+  font-family: 'SF Pro:Regular';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro_1') format('truetype');
+}
+
+@font-face {
+  font-family: 'SF Pro:Medium';
+  font-style: normal;
+  font-weight: 510;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro_1') format('truetype');
+}
+
+@font-face {
+  font-family: 'SF Pro Display';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('https://static.figma.com/font/SF-Pro_1') format('truetype');
+}
+
+@theme {
+  --font-sans: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: white !important; }
+}

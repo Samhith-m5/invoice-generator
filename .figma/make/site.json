@@ -1,0 +1,11 @@
+{
+  "title": "Invoice Generator",
+  "description": "Create professional invoices effortlessly with this user-friendly generator, designed for freelancers and small businesses to streamline billing.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

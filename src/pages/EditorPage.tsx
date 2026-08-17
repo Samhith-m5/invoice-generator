@@ -169,6 +169,18 @@ export default function EditorPage() {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
+        #pdf-page {
+          position: relative !important;
+          width: 816px !important;
+          height: 1056px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          page-break-before: avoid !important;
+          page-break-after: avoid !important;
+        }
         #invoice-print {
           position: absolute !important;
           left: 0 !important;
@@ -184,23 +196,28 @@ export default function EditorPage() {
           transform-origin: top left !important;
         }
       </style>
-      </head><body>${printArea.outerHTML}
+      </head><body><div id="pdf-page">${printArea.outerHTML}</div>
       <script>
         (function(){
           function prepare(){
             var invoice=document.getElementById("invoice-print");
-            if(!invoice)return;
-            var sheetWidth=13*96, sheetHeight=19*96;
+            var page=document.getElementById("pdf-page");
+            if(!invoice||!page)return;
+            var sheetWidth=8.5*96, sheetHeight=11*96;
             var naturalWidth=Math.ceil(Math.max(invoice.scrollWidth, invoice.getBoundingClientRect().width));
             var naturalHeight=Math.ceil(Math.max(invoice.scrollHeight, invoice.getBoundingClientRect().height));
             var scale=Math.min(sheetWidth/naturalWidth, sheetHeight/naturalHeight, 1);
+            page.style.width=sheetWidth+"px";
+            page.style.height=sheetHeight+"px";
             invoice.style.width=naturalWidth+"px";
             invoice.style.height=naturalHeight+"px";
+            invoice.style.transformOrigin="top left";
             invoice.style.transform="scale("+scale+")";
             document.documentElement.style.width=sheetWidth+"px";
             document.documentElement.style.height=sheetHeight+"px";
             document.body.style.width=sheetWidth+"px";
             document.body.style.height=sheetHeight+"px";
+            document.body.style.overflow="hidden";
             window.focus();
             setTimeout(function(){window.print();},150);
           }

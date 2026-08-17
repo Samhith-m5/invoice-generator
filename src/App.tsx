@@ -268,6 +268,18 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
+    #pdf-page {
+      position: relative !important;
+      width: 816px !important;
+      height: 1056px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      page-break-before: avoid !important;
+      page-break-after: avoid !important;
+    }
     #invoice-print {
       position: absolute !important;
       left: 0 !important;
@@ -284,7 +296,7 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
     }
   </style>
 </head>
-<body>${printArea.outerHTML}</body>
+<body><div id="pdf-page">${printArea.outerHTML}</div></body>
 </html>`);
 
       w.document.close();
@@ -293,23 +305,30 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
         const invoice = w.document.getElementById("invoice-print");
         if (!invoice) return;
 
-        const sheetWidth = 13 * 96;
-        const sheetHeight = 19 * 96;
+        const sheetWidth = 8.5 * 96;
+        const sheetHeight = 11 * 96;
+        const page = w.document.getElementById("pdf-page");
+        if (!page) return;
         const naturalWidth = Math.ceil(Math.max(invoice.scrollWidth, invoice.getBoundingClientRect().width));
         const naturalHeight = Math.ceil(Math.max(invoice.scrollHeight, invoice.getBoundingClientRect().height));
 
-        // Always scale down enough that the entire invoice fits on exactly
-        // one sheet. Never scale up, which preserves maximum sharpness.
+        // Safari may ignore custom @page sizes. Use Letter, which Safari honors,
+        // and put the invoice inside a fixed one-page clipping box. The transformed
+        // invoice is scaled visually while the page itself stays exactly one page.
         const scale = Math.min(sheetWidth / naturalWidth, sheetHeight / naturalHeight, 1);
 
+        page.style.width = `${sheetWidth}px`;
+        page.style.height = `${sheetHeight}px`;
         invoice.style.width = `${naturalWidth}px`;
         invoice.style.height = `${naturalHeight}px`;
         invoice.style.transform = `scale(${scale})`;
+        invoice.style.transformOrigin = "top left";
 
         w.document.documentElement.style.width = `${sheetWidth}px`;
         w.document.documentElement.style.height = `${sheetHeight}px`;
         w.document.body.style.width = `${sheetWidth}px`;
         w.document.body.style.height = `${sheetHeight}px`;
+        w.document.body.style.overflow = "hidden";
 
         w.focus();
         setTimeout(() => w.print(), 150);

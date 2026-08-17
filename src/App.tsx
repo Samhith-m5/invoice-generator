@@ -222,8 +222,11 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
     if (!printArea || isSaving) return;
     setIsSaving(true);
 
-    const pageWidth = printArea.scrollWidth;
-    const pageHeight = printArea.scrollHeight;
+    const rect = printArea.getBoundingClientRect();
+    const pageWidth = Math.ceil(Math.max(printArea.scrollWidth, rect.width));
+    const pageHeight = Math.ceil(Math.max(printArea.scrollHeight, rect.height));
+    const pageWidthMm = (pageWidth / 96) * 25.4;
+    const pageHeightMm = (pageHeight / 96) * 25.4;
     const safeName = (data.invoiceNumber || "invoice").replace(/[^a-zA-Z0-9\-_]+/g, "-");
     const w = window.open("", "_blank");
 
@@ -257,12 +260,14 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
   <title>${safeName}</title>
   <style>${styles}</style>
   <style>
-    @page { size: ${pageWidth}px ${pageHeight}px; margin: 0; }
-    html, body { margin: 0; padding: 0; width: ${pageWidth}px; background: #fff; }
+    @page { size: ${pageWidthMm}mm ${pageHeightMm}mm; margin: 0; }
+    html, body { margin: 0; padding: 0; width: ${pageWidth}px; height: ${pageHeight}px; background: #fff; overflow: visible; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #invoice-print {
       width: ${pageWidth}px !important;
+      height: ${pageHeight}px !important;
       min-height: ${pageHeight}px;
+      max-height: ${pageHeight}px;
       margin: 0 !important;
       transform: none !important;
       box-shadow: none !important;

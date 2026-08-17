@@ -137,8 +137,11 @@ export default function EditorPage() {
   function handlePrint() {
     const printArea = document.getElementById("invoice-print");
     if (!printArea) return;
-    const pageWidth = printArea.scrollWidth;
-    const pageHeight = printArea.scrollHeight;
+    const rect = printArea.getBoundingClientRect();
+    const pageWidth = Math.ceil(Math.max(printArea.scrollWidth, rect.width));
+    const pageHeight = Math.ceil(Math.max(printArea.scrollHeight, rect.height));
+    const pageWidthMm = (pageWidth / 96) * 25.4;
+    const pageHeightMm = (pageHeight / 96) * 25.4;
     const w = window.open("", "_blank");
     if (!w) return;
     const styles = Array.from(document.styleSheets)
@@ -149,9 +152,9 @@ export default function EditorPage() {
       <title>${data.invoiceType} - ${data.invoiceNumber}</title>
       <style>${styles}</style>
       <style>
-        @page { size: ${pageWidth}px ${pageHeight}px; margin: 0; }
-        html, body { margin: 0; padding: 0; background: #fff; }
-        #invoice-print { width: ${pageWidth}px; break-inside: avoid; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: ${pageWidthMm}mm ${pageHeightMm}mm; margin: 0; }
+        html, body { margin: 0; padding: 0; width: ${pageWidth}px; height: ${pageHeight}px; background: #fff; overflow: visible; }
+        #invoice-print { width: ${pageWidth}px; height: ${pageHeight}px; break-inside: avoid; page-break-inside: avoid; page-break-after: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       </style>
       </head><body>${printArea.outerHTML}
       <script>(function(){function go(){window.focus();window.print();}var imgs=Array.prototype.slice.call(document.images);var pending=imgs.filter(function(i){return!i.complete;}).length;if(pending===0){setTimeout(go,200);return;}imgs.forEach(function(i){if(i.complete)return;i.addEventListener("load",done);i.addEventListener("error",done);});function done(){if(--pending<=0)setTimeout(go,200);}})();<\/script>

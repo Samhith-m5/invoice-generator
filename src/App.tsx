@@ -1,6 +1,4 @@
 import { useState, useRef, useLayoutEffect } from "react";
-import html2canvas from "html2canvas-pro";
-import { jsPDF } from "jspdf";
 import InvoiceView, { type InvoiceData, type LineItem } from "@/components/InvoiceView";
 import { saveInvoice, loadInvoices, deleteInvoice, getInvoice, type SavedInvoice } from "@/lib/invoiceStore";
 
@@ -224,34 +222,73 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
     if (!printArea || isSaving) return;
     setIsSaving(true);
 
-    const holder = document.createElement("div");
-    holder.style.position = "fixed";
-    holder.style.left = "-10000px";
-    holder.style.top = "0";
-    holder.style.width = "1350px";
-    holder.style.background = "#ffffff";
-    const clone = printArea.cloneNode(true) as HTMLElement;
-    clone.style.transform = "none";
-    clone.style.width = "1350px";
-    holder.appendChild(clone);
-    document.body.appendChild(holder);
+    const pageWidth = printArea.scrollWidth;
+    const pageHeight = printArea.scrollHeight;
+    const safeName = (data.invoiceNumber || "invoice").replace(/[^a-zA-Z0-9\-_]+/g, "-");
+    const w = window.open("", "_blank");
+
+    if (!w) {
+      setIsSaving(false);
+      setSaveError("Please allow pop-ups to save the PDF.");
+      setTimeout(() => setSaveError(null), 4000);
+      return;
+    }
 
     try {
       if (document.fonts?.ready) await document.fonts.ready;
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        width: 1350,
-        windowWidth: 1350,
-      });
-      const orientation = canvas.width >= canvas.height ? "landscape" : "portrait";
-      const pdf = new jsPDF({ orientation, unit: "px", format: [canvas.width, canvas.height] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, canvas.width, canvas.height);
-      const safeName = (data.invoiceNumber || "invoice").replace(/[^a-zA-Z0-9\-_]+/g, "-");
-      pdf.save(`${safeName}.pdf`);
+
+      // Use the browser's native print engine instead of converting the invoice
+      // to a canvas. This keeps text, borders, and the inline SVG logo vector-based
+      // so the resulting PDF remains sharp at any zoom level.
+      const styles = Array.from(document.styleSheets)
+        .map((sheet) => {
+          try {
+            return Array.from(sheet.cssRules).map((rule) => rule.cssText).join("\n");
+          } catch {
+            return "";
+          }
+        })
+        .join("\n");
+
+      w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${safeName}</title>
+  <style>${styles}</style>
+  <style>
+    @page { size: ${pageWidth}px ${pageHeight}px; margin: 0; }
+    html, body { margin: 0; padding: 0; width: ${pageWidth}px; background: #fff; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #invoice-print {
+      width: ${pageWidth}px !important;
+      min-height: ${pageHeight}px;
+      margin: 0 !important;
+      transform: none !important;
+      box-shadow: none !important;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>${printArea.outerHTML}</body>
+</html>`);
+      w.document.close();
+
+      const print = () => {
+        w.focus();
+        w.print();
+      };
+
+      if (w.document.fonts?.ready) {
+        await w.document.fonts.ready;
+      }
+      setTimeout(print, 250);
+    } catch (err) {
+      w.close();
+      setSaveError(err instanceof Error ? err.message : "Failed to open PDF print dialog.");
+      setTimeout(() => setSaveError(null), 4000);
     } finally {
-      document.body.removeChild(holder);
       setIsSaving(false);
     }
   }

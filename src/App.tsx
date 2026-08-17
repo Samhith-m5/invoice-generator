@@ -222,11 +222,6 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
     if (!printArea || isSaving) return;
     setIsSaving(true);
 
-    const rect = printArea.getBoundingClientRect();
-    const pageWidth = Math.ceil(Math.max(printArea.scrollWidth, rect.width));
-    const pageHeight = Math.ceil(Math.max(printArea.scrollHeight, rect.height));
-    const pageWidthMm = (pageWidth / 96) * 25.4;
-    const pageHeightMm = (pageHeight / 96) * 25.4;
     const safeName = (data.invoiceNumber || "invoice").replace(/[^a-zA-Z0-9\-_]+/g, "-");
     const w = window.open("", "_blank");
 
@@ -240,9 +235,6 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
     try {
       if (document.fonts?.ready) await document.fonts.ready;
 
-      // Use the browser's native print engine instead of converting the invoice
-      // to a canvas. This keeps text, borders, and the inline SVG logo vector-based
-      // so the resulting PDF remains sharp at any zoom level.
       const styles = Array.from(document.styleSheets)
         .map((sheet) => {
           try {
@@ -253,6 +245,9 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
         })
         .join("\n");
 
+      // Safari may ignore arbitrary CSS @page heights and fall back to a
+      // standard paper size. Fit the complete invoice inside a 13 x 19 inch
+      // sheet so it can never spill onto a second page.
       w.document.write(`<!DOCTYPE html>
 <html>
 <head>
@@ -260,35 +255,90 @@ function EditorPage({ editId, onGoInvoices }: { editId?: string; onGoInvoices: (
   <title>${safeName}</title>
   <style>${styles}</style>
   <style>
-    @page { size: ${pageWidthMm}mm ${pageHeightMm}mm; margin: 0; }
-    html, body { margin: 0; padding: 0; width: ${pageWidth}px; height: ${pageHeight}px; background: #fff; overflow: visible; }
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    #invoice-print {
-      width: ${pageWidth}px !important;
-      height: ${pageHeight}px !important;
-      min-height: ${pageHeight}px;
-      max-height: ${pageHeight}px;
+    @page { size: 13in 19in; margin: 0; }
+    html, body {
       margin: 0 !important;
-      transform: none !important;
+      padding: 0 !important;
+      width: 13in !important;
+      height: 19in !important;
+      overflow: hidden !important;
+      background: #fff !important;
+    }
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    #invoice-print {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      margin: 0 !important;
       box-shadow: none !important;
-      break-inside: avoid;
-      page-break-inside: avoid;
+      max-width: none !important;
+      min-height: 0 !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      page-break-before: avoid !important;
+      page-break-after: avoid !important;
+      transform-origin: top left !important;
     }
   </style>
 </head>
 <body>${printArea.outerHTML}</body>
 </html>`);
+
       w.document.close();
 
-      const print = () => {
+      const prepareAndPrint = () => {
+        const invoice = w.document.getElementById("invoice-print");
+        if (!invoice) return;
+
+        const sheetWidth = 13 * 96;
+        const sheetHeight = 19 * 96;
+        const naturalWidth = Math.ceil(Math.max(invoice.scrollWidth, invoice.getBoundingClientRect().width));
+        const naturalHeight = Math.ceil(Math.max(invoice.scrollHeight, invoice.getBoundingClientRect().height));
+
+        // Always scale down enough that the entire invoice fits on exactly
+        // one sheet. Never scale up, which preserves maximum sharpness.
+        const scale = Math.min(sheetWidth / naturalWidth, sheetHeight / naturalHeight, 1);
+
+        invoice.style.width = `${naturalWidth}px`;
+        invoice.style.height = `${naturalHeight}px`;
+        invoice.style.transform = `scale(${scale})`;
+
+        w.document.documentElement.style.width = `${sheetWidth}px`;
+        w.document.documentElement.style.height = `${sheetHeight}px`;
+        w.document.body.style.width = `${sheetWidth}px`;
+        w.document.body.style.height = `${sheetHeight}px`;
+
         w.focus();
-        w.print();
+        setTimeout(() => w.print(), 150);
       };
 
-      if (w.document.fonts?.ready) {
-        await w.document.fonts.ready;
+      const imgs = Array.from(w.document.images);
+      const pending = imgs.filter((img) => !img.complete).length;
+
+      if (pending === 0) {
+        if (w.document.fonts?.ready) await w.document.fonts.ready;
+        setTimeout(prepareAndPrint, 200);
+      } else {
+        let remaining = pending;
+        const done = () => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            if (w.document.fonts?.ready) {
+              w.document.fonts.ready.then(() => setTimeout(prepareAndPrint, 200));
+            } else {
+              setTimeout(prepareAndPrint, 200);
+            }
+          }
+        };
+        imgs.forEach((img) => {
+          if (img.complete) return;
+          img.addEventListener("load", done, { once: true });
+          img.addEventListener("error", done, { once: true });
+        });
       }
-      setTimeout(print, 250);
     } catch (err) {
       w.close();
       setSaveError(err instanceof Error ? err.message : "Failed to open PDF print dialog.");

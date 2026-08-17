@@ -137,27 +137,91 @@ export default function EditorPage() {
   function handlePrint() {
     const printArea = document.getElementById("invoice-print");
     if (!printArea) return;
-    const rect = printArea.getBoundingClientRect();
-    const pageWidth = Math.ceil(Math.max(printArea.scrollWidth, rect.width));
-    const pageHeight = Math.ceil(Math.max(printArea.scrollHeight, rect.height));
-    const pageWidthMm = (pageWidth / 96) * 25.4;
-    const pageHeightMm = (pageHeight / 96) * 25.4;
+
     const w = window.open("", "_blank");
     if (!w) return;
+
     const styles = Array.from(document.styleSheets)
-      .map((s) => { try { return Array.from(s.cssRules).map((r) => r.cssText).join("\n"); } catch { return ""; } })
+      .map((s) => {
+        try {
+          return Array.from(s.cssRules).map((r) => r.cssText).join("\n");
+        } catch {
+          return "";
+        }
+      })
       .join("\n");
+
     w.document.write(`<!DOCTYPE html><html><head>
       <meta charset="utf-8">
       <title>${data.invoiceType} - ${data.invoiceNumber}</title>
       <style>${styles}</style>
       <style>
-        @page { size: ${pageWidthMm}mm ${pageHeightMm}mm; margin: 0; }
-        html, body { margin: 0; padding: 0; width: ${pageWidth}px; height: ${pageHeight}px; background: #fff; overflow: visible; }
-        #invoice-print { width: ${pageWidth}px; height: ${pageHeight}px; break-inside: avoid; page-break-inside: avoid; page-break-after: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: 13in 19in; margin: 0; }
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 13in !important;
+          height: 19in !important;
+          overflow: hidden !important;
+          background: #fff !important;
+        }
+        body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #invoice-print {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          max-width: none !important;
+          min-height: 0 !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          page-break-before: avoid !important;
+          page-break-after: avoid !important;
+          transform-origin: top left !important;
+        }
       </style>
       </head><body>${printArea.outerHTML}
-      <script>(function(){function go(){window.focus();window.print();}var imgs=Array.prototype.slice.call(document.images);var pending=imgs.filter(function(i){return!i.complete;}).length;if(pending===0){setTimeout(go,200);return;}imgs.forEach(function(i){if(i.complete)return;i.addEventListener("load",done);i.addEventListener("error",done);});function done(){if(--pending<=0)setTimeout(go,200);}})();<\/script>
+      <script>
+        (function(){
+          function prepare(){
+            var invoice=document.getElementById("invoice-print");
+            if(!invoice)return;
+            var sheetWidth=13*96, sheetHeight=19*96;
+            var naturalWidth=Math.ceil(Math.max(invoice.scrollWidth, invoice.getBoundingClientRect().width));
+            var naturalHeight=Math.ceil(Math.max(invoice.scrollHeight, invoice.getBoundingClientRect().height));
+            var scale=Math.min(sheetWidth/naturalWidth, sheetHeight/naturalHeight, 1);
+            invoice.style.width=naturalWidth+"px";
+            invoice.style.height=naturalHeight+"px";
+            invoice.style.transform="scale("+scale+")";
+            document.documentElement.style.width=sheetWidth+"px";
+            document.documentElement.style.height=sheetHeight+"px";
+            document.body.style.width=sheetWidth+"px";
+            document.body.style.height=sheetHeight+"px";
+            window.focus();
+            setTimeout(function(){window.print();},150);
+          }
+          function wait(){
+            var imgs=Array.prototype.slice.call(document.images);
+            var pending=imgs.filter(function(i){return !i.complete;}).length;
+            if(pending===0){prepare();return;}
+            var done=function(){if(--pending<=0)prepare();};
+            imgs.forEach(function(i){
+              if(i.complete)return;
+              i.addEventListener("load",done,{once:true});
+              i.addEventListener("error",done,{once:true});
+            });
+          }
+          if(document.fonts&&document.fonts.ready){
+            document.fonts.ready.then(function(){setTimeout(wait,150);});
+          }else{
+            setTimeout(wait,150);
+          }
+        })();
+      <\/script>
       </body></html>`);
     w.document.close();
   }
